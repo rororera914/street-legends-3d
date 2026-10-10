@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Street Legends 3D</title>
+<style>
+html,body{margin:0;overflow:hidden;width:100%;height:100%;background:#87ceeb;font-family:Arial;touch-action:none}
+#game{position:fixed;inset:0}#status,#settings{position:fixed;z-index:20;color:white;background:#000b;padding:10px;border-radius:10px}
+#status{top:10px;left:10px}#settings{top:10px;right:10px;font-size:24px;border:0}
+#menu{display:none;position:fixed;top:60px;right:10px;z-index:40;background:#222e;color:white;padding:12px;border-radius:12px}
+#menu button{display:block;width:150px;margin:6px;padding:10px;border:0;border-radius:8px}
+#message{display:none;position:fixed;bottom:180px;left:50%;transform:translateX(-50%);z-index:30;color:white;background:#000c;padding:12px;border-radius:10px}
+#arrows{position:fixed;left:20px;bottom:20px;width:180px;height:180px;z-index:25}
+.arrow{position:absolute;width:58px;height:58px;border:0;border-radius:14px;background:#000a;color:white;font-size:28px;touch-action:none}
+#up{left:61px}#left{left:0;top:61px}#down{left:61px;top:61px}#right{left:122px;top:61px}
+#actions{position:fixed;right:15px;bottom:20px;z-index:25}
+.action{width:75px;height:75px;border:0;border-radius:50%;margin:5px;background:#000a;color:white;font-weight:bold}
+#joystick{display:none;position:fixed;left:35px;bottom:35px;width:150px;height:150px;border-radius:50%;background:#0005;border:3px solid #fff8;z-index:25}
+#stick{position:absolute;left:50px;top:50px;width:50px;height:50px;border-radius:50%;background:#fffa}
+#wheel{display:none;position:fixed;right:25px;bottom:25px;width:145px;height:145px;border:12px solid #222;border-radius:50%;background:#7778;z-index:25}
+#wheel:after{content:"";position:absolute;left:50%;top:10px;width:10px;height:125px;background:#222;transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div id="game"></div><div id="status">Walking</div>
+<button id="settings">⚙️</button>
+<div id="menu"><b>Controls</b><button data-mode="arrows">➡️ Arrows</button><button data-mode="joystick">🎮 Joystick</button><button data-mode="wheel">🛞 Wheel</button></div>
+<div id="message"></div>
+<div id="arrows"><button class="arrow" id="up">▲</button><button class="arrow" id="left">◀</button><button class="arrow" id="down">▼</button><button class="arrow" id="right">▶</button></div>
+<div id="joystick"><div id="stick"></div></div><div id="wheel"></div>
+<div id="actions"><button class="action" id="enter">ENTER</button><button class="action" id="talk">TALK</button></div>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x87ceeb);scene.fog=new THREE.Fog(0x87ceeb,80,400);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,1000);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));game.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x444444,1.8));let sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(100,200,100);scene.add(sun);
+let ground=new THREE.Mesh(new THREE.PlaneGeometry(600,600),new THREE.MeshStandardMaterial({color:0x39833b}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+function road(x,z,w,d){let r=new THREE.Mesh(new THREE.BoxGeometry(w,.08,d),new THREE.MeshStandardMaterial({color:0x303030}));r.position.set(x,.04,z);scene.add(r)}
+for(let i=-250;i<=250;i+=50){road(0,i,600,16);road(i,0,16,600)}
+const buildings=[],cars=[],npcs=[];
+function building(x,z){let g=new THREE.Group();g.userData.type="building";let shell=new THREE.Mesh(new THREE.BoxGeometry(24,28,24),new THREE.MeshStandardMaterial({color:0x777777}));shell.position.y=14;g.add(shell);let door=new THREE.Mesh(new THREE.BoxGeometry(4,7,.25),new THREE.MeshStandardMaterial({color:0x442816}));door.position.set(0,3.5,12.15);g.add(door);for(let xx=-8;xx<=8;xx+=5)for(let yy=8;yy<25;yy+=6){let w=new THREE.Mesh(new THREE.BoxGeometry(3,2,.15),new THREE.MeshBasicMaterial({color:0x8fd8ff}));w.position.set(xx,yy,12.15);g.add(w)}let interior=new THREE.Group();interior.visible=false;let f=new THREE.Mesh(new THREE.BoxGeometry(20,.2,20),new THREE.MeshStandardMaterial({color:0x9b8b7a}));f.position.y=.1;interior.add(f);let mat=new THREE.MeshStandardMaterial({color:0xe5e0d5});for(let p of [[0,3.5,-10],[ -10,3.5,0],[10,3.5,0]]){let w=new THREE.Mesh(p[0]===0?new THREE.BoxGeometry(20,7,.3):new THREE.BoxGeometry(.3,7,20),mat);w.position.set(...p);interior.add(w)}g.add(interior);g.position.set(x,0,z);g.userData.interior=interior;scene.add(g);buildings.push(g)}
+for(let x=-250;x<=250;x+=50)for(let z=-250;z<=250;z+=50)if(Math.abs(x)>=25&&Math.abs(z)>=25)building(x+Math.random()*8-4,z+Math.random()*8-4);
+const player=new THREE.Group();let pb=new THREE.Mesh(new THREE.CapsuleGeometry(.5,1.1,6,12),new THREE.MeshStandardMaterial({color:0x2468d8}));pb.position.y=1.2;player.add(pb);player.position.set(0,0,10);scene.add(player);
+function car(type,x,z,color){let g=new THREE.Group();g.userData={type:"car",name:type,speed:type==="sports"?.22:.14};let bw=type==="sports"?2.25:2.8, bh=type==="sports"?.7:1, bl=type==="sports"?4.5:4.7;let b=new THREE.Mesh(new THREE.BoxGeometry(bw,bh,bl),new THREE.MeshStandardMaterial({color}));b.position.y=1;g.add(b);let cab=new THREE.Mesh(new THREE.BoxGeometry(bw*.82,type==="sports"?.75:1.05,2.3),new THREE.MeshStandardMaterial({color:0x222222}));cab.position.y=type==="sports"?1.65:2;g.add(cab);let wg=new THREE.CylinderGeometry(.5,.5,.38,20),wm=new THREE.MeshStandardMaterial({color:0x111111});for(let p of [[-1.35,.55,-1.55],[1.35,.55,-1.55],[-1.35,.55,1.55],[1.35,.55,1.55]]){let w=new THREE.Mesh(wg,wm);w.rotation.z=Math.PI/2;w.position.set(...p);g.add(w)}g.position.set(x,0,z);scene.add(g);cars.push(g)}
+car("sports",8,10,0xd52c2c);car("sports",-8,10,0xffc400);car("5008",12,25,0xffffff);car("5008",-12,25,0x222222);car("sedan",20,-20,0x2368c9);
+function npc(x,z){let n=new THREE.Group();let h=new THREE.Mesh(new THREE.SphereGeometry(.35,12,12),new THREE.MeshStandardMaterial({color:0xffc49c}));h.position.y=1.8;n.add(h);let b=new THREE.Mesh(new THREE.CapsuleGeometry(.35,.8,5,8),new THREE.MeshStandardMaterial({color:0x3d70c9}));b.position.y=.9;n.add(b);n.position.set(x,0,z);n.userData.target=new THREE.Vector3(x+Math.random()*30-15,0,z+Math.random()*30-15);scene.add(n);npcs.push(n)}
+for(let i=0;i<20;i++)npc(Math.random()*300-150,Math.random()*300-150);
+const keys={up:false,down:false,left:false,right:false};let mode="arrows",currentCar=null,driving=false,speed=0,inside=null;
+function msg(t){message.textContent=t;message.style.display="block";clearTimeout(window.mt);window.mt=setTimeout(()=>message.style.display="none",2200)}
+function bind(id,k){let b=document.getElementById(id);b.addEventListener("pointerdown",e=>{e.preventDefault();keys[k]=true});["pointerup","pointercancel","pointerleave"].forEach(ev=>b.addEventListener(ev,()=>keys[k]=false))}
+["up","down","left","right"].forEach(k=>bind(k,k));
+addEventListener("keydown",e=>{if(e.key==="ArrowUp")keys.up=true;if(e.key==="ArrowDown")keys.down=true;if(e.key==="ArrowLeft")keys.left=true;if(e.key==="ArrowRight")keys.right=true;if(e.key.toLowerCase()==="e")enterExit()});
+addEventListener("keyup",e=>{if(e.key==="ArrowUp")keys.up=false;if(e.key==="ArrowDown")keys.down=false;if(e.key==="ArrowLeft")keys.left=false;if(e.key==="ArrowRight")keys.right=false});
+settings.onclick=()=>menu.style.display=menu.style.display==="block"?"none":"block";
+document.querySelectorAll("#menu button").forEach(b=>b.onclick=()=>{mode=b.dataset.mode;menu.style.display="none";arrows.style.display=mode==="arrows"?"block":"none";joystick.style.display=mode==="joystick"?"block":"none";wheel.style.display=mode==="wheel"?"block":"none"});
+function nearest(list){let best=null,d=999;for(let x of list){let q=player.position.distanceTo(x.position);if(q<d){d=q;best=x}}return [best,d]}
+function enterExit(){if(driving){driving=false;player.visible=true;player.position.copy(currentCar.position);player.position.x+=3;currentCar=null;enter.style.display=talk.style.display="";status.textContent="Walking";msg("You got out");return}let [c,d]=nearest(cars);if(c&&d<5){currentCar=c;driving=true;player.visible=false;speed=0;enter.style.display=talk.style.display="none";status.textContent="Driving: "+c.userData.name;msg("You entered the car");return}let [b,bd]=nearest(buildings);if(inside){inside.userData.interior.visible=false;inside.children[0].visible=true;player.position.set(inside.position.x,0,inside.position.z+14);inside=null;msg("You left the building");return}if(b&&bd<16){b.children[0].visible=false;b.userData.interior.visible=true;player.position.set(b.position.x,0,b.position.z);inside=b;msg("You entered the building");}else msg("Go closer to a car or building")}
+enter.onclick=enterExit;
+talk.onclick=()=>{if(driving)return;let [n,d]=nearest(npcs);msg(n&&d<4?["Hello!","Nice car!","Welcome to the city!"][Math.floor(Math.random()*3)]:"Nobody nearby")};
+let joyActive=false;joystick.addEventListener("pointermove",e=>{if(!joyActive)return;let r=joystick.getBoundingClientRect(),x=e.clientX-(r.left+75),y=e.clientY-(r.top+75);let l=Math.hypot(x,y);if(l>55){x*=55/l;y*=55/l}stick.style.transform=`translate(${x}px,${y}px)`;keys.left=x<-15;keys.right=x>15;keys.up=y<-15;keys.down=y>15});["pointerdown"].forEach(e=>joystick.addEventListener(e,()=>joyActive=true));["pointerup","pointercancel","pointerleave"].forEach(e=>joystick.addEventListener(e,()=>{joyActive=false;keys.up=keys.down=keys.left=keys.right=false;stick.style.transform=""}));
+let wheelStart=0;wheel.addEventListener("pointerdown",e=>wheelStart=e.clientX);wheel.addEventListener("pointermove",e=>{if(!wheelStart)return;let dx=e.clientX-wheelStart;keys.left=dx<-15;keys.right=dx>15});["pointerup","pointercancel","pointerleave"].forEach(e=>wheel.addEventListener(e,()=>{wheelStart=0;keys.left=keys.right=false}));
+function move(){if(driving)return;let x=(keys.right?1:0)-(keys.left?1:0),z=(keys.down?1:0)-(keys.up?1:0),l=Math.hypot(x,z);if(!l)return;x/=l;z/=l;player.position.x+=x*.11;player.position.z+=z*.11;player.rotation.y=Math.atan2(x,z)}
+function drive(){if(!driving)return;let f=(keys.up?1:0)-(keys.down?1:0),t=(keys.left?1:0)-(keys.right?1:0),m=currentCar.userData.speed;if(f)speed+=f*.012;else speed*=.96;speed=THREE.MathUtils.clamp(speed,-m*.5,m);currentCar.rotation.y+=t*.035*Math.abs(speed)/m;currentCar.translateZ(-speed)}
+function update(){for(let n of npcs){let t=n.userData.target,dx=t.x-n.position.x,dz=t.z-n.position.z,l=Math.hypot(dx,dz);if(l<2){n.userData.target.set(n.position.x+Math.random()*50-25,0,n.position.z+Math.random()*50-25);continue}n.position.x+=dx/l*.025;n.position.z+=dz/l*.025;n.rotation.y=Math.atan2(dx,dz)}}
+function cameraUpdate(){let t=driving?currentCar.position:player.position,o=new THREE.Vector3(0,driving?6:5,driving?11:8);if(driving)o.applyQuaternion(currentCar.quaternion);camera.position.lerp(t.clone().add(o),.08);camera.lookAt(t.x,t.y+1,t.z)}
+function animate(){requestAnimationFrame(animate);move();drive();update();cameraUpdate();renderer.render(scene,camera)}animate();
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script></body></html>
